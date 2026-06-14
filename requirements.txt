@@ -1,10 +1,9 @@
 opencv-python-headless
-face-recognition
 numpy
 pandas
 pillow
-git+https://github.com/ageitgey/face_recognition_models
-setuptools==67.8.0
+dlib
+face_recognition
 gunicorn
 Flask
 python-dotenv
