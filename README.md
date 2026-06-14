@@ -1,11 +1,9 @@
 ---
-title: AI Face Attendance System
-emoji: 👤
-colorFrom: navy
-colorTo: teal
-sdk: docker
-app_port: 7860
-pinned: false
+title: AI Attandance
+sdk: streamlit
+emoji: 🤖
+colorFrom: blue
+colorTo: green
 ---
 
 # Sistem Presensi Mahasiswa Berbasis Face Recognition
