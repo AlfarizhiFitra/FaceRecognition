@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard — AI Face Attendance</title>
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
             --navy:       #0F1B2D;
@@ -38,7 +39,7 @@
         .burger.open .burger-line:nth-child(2) { opacity: 0; }
         .burger.open .burger-line:nth-child(3) { transform: rotate(-45deg) translate(5px, -5px); }
 
-        .nav-dropdown { position: absolute; top: calc(100% + 100px); right: 0; background: var(--navy-card); border: 1px solid var(--border); border-radius: 12px; min-width: 24px; width: 220px; padding: 8px; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); opacity: 0; transform: translateY(-10px); pointer-events: none; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .nav-dropdown { position: absolute; top: calc(100% + 100px); right: 0; background: var(--navy-card); border: 1px solid var(--border); border-radius: 12px; width: 220px; padding: 8px; display: flex; flex-direction: column; gap: 4px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); opacity: 0; transform: translateY(-10px); pointer-events: none; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
         .nav-dropdown.open { opacity: 1; transform: translateY(0); pointer-events: auto; top: calc(100% + 5px); }
         .nav-dropdown a { display: flex; align-items: center; gap: 12px; padding: 12px 16px; color: var(--text); text-decoration: none; font-size: 0.95rem; font-weight: 500; border-radius: 8px; transition: background 0.2s; }
         .nav-dropdown a:hover { background: var(--teal-dim); color: var(--teal); }
@@ -62,8 +63,11 @@
         .stat-footer { font-size: 0.8rem; color: var(--muted); margin-top: 8px; }
 
         /* Main Workspace Layout */
-        .dashboard-row { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 40px; }
-        @media(max-width: 992px) { .dashboard-row { grid-template-columns: 1fr; } }
+        .dashboard-row { display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 24px; }
+        .charts-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 40px; }
+        @media(max-width: 992px) { 
+            .dashboard-row, .charts-row { grid-template-columns: 1fr; } 
+        }
 
         .main-card { background: var(--navy-card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
         .card-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 20px; color: var(--text); display: flex; align-items: center; justify-content: space-between; }
@@ -90,6 +94,9 @@
         .chip-dot { width: 6px; height: 6px; border-radius: 50%; }
         .hadir .chip-dot { background: var(--green); }
         .belum .chip-dot { background: var(--muted); }
+
+        /* Wrapper Grafik Ukuran Terkontrol */
+        .chart-container { position: relative; width: 100%; height: 220px; display: flex; justify-content: center; align-items: center; }
     </style>
 </head>
 <body>
@@ -186,6 +193,21 @@
                 </div>
             </div>
         </div>
+
+        <div class="charts-row">
+            <div class="main-card">
+                <div class="card-title">Rasio Kehadiran Kumulatif (Donut)</div>
+                <div class="chart-container">
+                    <canvas id="donutChart"></canvas>
+                </div>
+            </div>
+            <div class="main-card">
+                <div class="card-title">Tren Jam Sibuk Presensi Masuk (Line)</div>
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -206,10 +228,10 @@
         document.getElementById('today-date').textContent =
             d.toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
 
-        // Pengisian Data Widget Sisi Kanan Dinamis dari Python
-        const hadirList = {{ hadir_hari_ini | tojson }};
-        const belumList = {{ belum_hadir | tojson }};
-        const totalMhs  = {{ total_mahasiswa }};
+        // Pengisian Data Widget Sisi Kanan Dinamis dari Python (Gunakan JSON.parse agar aman dari linter VS Code)
+        const hadirList = JSON.parse('{{ hadir_hari_ini | tojson }}');
+        const belumList = JSON.parse('{{ belum_hadir | tojson }}');
+        const totalMhs  = Number('{{ total_mahasiswa }}');
         const pctH = totalMhs > 0 ? Math.round((hadirList.length / totalMhs) * 100) : 0;
 
         document.getElementById('hadir-count').textContent = `${hadirList.length} / ${totalMhs} Mahasiswa (${pctH}%)`;
@@ -226,6 +248,64 @@
                 listContainer.innerHTML += `<div class="name-chip belum"><div class="chip-dot"></div>${name}</div>`;
             });
         }
+
+        // ── KODE MERENDER GRAFIK ANALITIK MENGGUNAKAN CHART.JS ──
+        
+        // 1. Ambil payload data grafik dari backend app.py
+        const donutData = JSON.parse('{{ donut | tojson }}');
+        const trendData = JSON.parse('{{ trend | tojson }}');
+
+        // 2. Konfigurasi Visual Donut Chart (Rasio Hadir vs Gagal)
+        const ctxDonut = document.getElementById('donutChart').getContext('2d');
+        new Chart(ctxDonut, {
+            type: 'doughnut',
+            data: {
+                labels: ['Hadir Tepat Waktu', 'Gagal Validasi / Tidak Hadir'],
+                datasets: [{
+                    data: [donutData.sukses || 0, donutData.gagal || 0],
+                    backgroundColor: ['#10B981', '#EF4444'],
+                    borderColor: '#1A2E47',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { labels: { color: '#F0F4F8', font: { family: 'Space Grotesk' } } }
+                }
+            }
+        });
+
+        // 3. Konfigurasi Visual Line Chart (Tren Jam Masuk Sibuk)
+        const ctxTrend = document.getElementById('trendChart').getContext('2d');
+        new Chart(ctxTrend, {
+            type: 'line',
+            data: {
+                labels: trendData.labels || [],
+                datasets: [{
+                    label: 'Jumlah Mahasiswa Masuk',
+                    data: trendData.values || [],
+                    borderColor: '#00D4C8',
+                    backgroundColor: 'rgba(0, 212, 200, 0.1)',
+                    borderWidth: 3,
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#00D4C8'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false }
+                },
+                scales: {
+                    x: { grid: { color: 'rgba(0,212,200,0.05)' }, ticks: { color: '#7A9BB5', font: { family: 'Space Grotesk' } } },
+                    y: { grid: { color: 'rgba(0,212,200,0.05)' }, ticks: { color: '#7A9BB5', font: { family: 'Space Grotesk' }, stepSize: 1 } }
+                }
+            }
+        });
     </script>
 </body>
 </html>
