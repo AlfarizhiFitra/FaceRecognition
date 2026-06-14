@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prediksi — AI Face Attendance</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --navy:      #0F1B2D;
+            --navy-card: #1A2E47;
+            --navy-deep: #0A1520;
+            --teal:      #00D4C8;
+            --teal-dim:  rgba(0,212,200,0.12);
+            --teal-glow: rgba(0,212,200,0.28);
+            --text:      #F0F4F8;
+            --muted:     #7A9BB5;
+            --border:    rgba(0,212,200,0.18);
+            --green:     #10B981;
+            --green-dim: rgba(16,185,129,0.12);
+            --amber:     #F59E0B;
+            --amber-dim: rgba(245,158,11,0.12);
+            --red:       #EF4444;
+            --red-dim:   rgba(239,68,68,0.12);
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Space Grotesk', sans-serif;
+            background: var(--navy); color: var(--text); min-height: 100vh;
+        }
+
+        /* NAVBAR */
+        .navbar {
+            position: sticky; top: 0; z-index: 100;
+            background: rgba(10,21,32,0.92); border-bottom: 1px solid var(--border);
+            backdrop-filter: blur(14px); height: 56px;
+            display: flex; align-items: center; padding: 0 1.5rem;
+        }
+        .navbar-inner {
+            width: 100%; max-width: 1200px; margin: 0 auto;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .navbar-brand { font-weight: 700; font-size: 1rem; color: var(--teal); text-decoration: none; }
+        .navbar-brand span { color: var(--text); }
+        .burger {
+            width: 36px; height: 36px; background: var(--teal-dim);
+            border: 1px solid var(--border); border-radius: 8px;
+            display: flex; flex-direction: column; align-items: center;
+            justify-content: center; gap: 5px; cursor: pointer; padding: 0; transition: all 0.2s;
+        }
+        .burger:hover { background: rgba(0,212,200,0.2); border-color: var(--teal); }
+        .burger-line {
+            width: 16px; height: 2px; background: var(--teal); border-radius: 2px;
+            transition: transform 0.25s, opacity 0.2s, width 0.2s; transform-origin: center;
+        }
+        .burger.open .burger-line:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+        .burger.open .burger-line:nth-child(2) { opacity: 0; width: 0; }
+        .burger.open .burger-line:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+        .nav-dropdown {
+            position: absolute; top: 56px; right: 0; width: 230px;
+            background: #111f33; border: 1px solid var(--border); border-top: none;
+            border-radius: 0 0 12px 12px; box-shadow: 0 16px 40px rgba(0,0,0,0.5);
+            overflow: hidden; max-height: 0; opacity: 0; pointer-events: none;
+            transition: max-height 0.3s ease, opacity 0.2s ease;
+        }
+        .nav-dropdown.open { max-height: 400px; opacity: 1; pointer-events: all; }
+        .nav-dropdown a {
+            display: flex; align-items: center; gap: 0.65rem;
+            padding: 0.85rem 1.25rem; font-size: 0.875rem; font-weight: 500;
+            color: var(--muted); text-decoration: none;
+            border-bottom: 1px solid rgba(0,212,200,0.07);
+            transition: background 0.15s, color 0.15s;
+        }
+        .nav-dropdown a:last-child { border-bottom: none; }
+        .nav-dropdown a:hover { background: var(--teal-dim); color: var(--text); }
+        .nav-dropdown a.active { color: var(--teal); background: var(--teal-dim); }
+        .nav-dropdown a.logout { color: #FC8181; }
+        .nav-dropdown a.logout:hover { background: rgba(239,68,68,0.1); }
+
+        /* PAGE */
+        .page { max-width: 1200px; margin: 0 auto; padding: 2rem 1.25rem; }
+        .page-eyebrow {
+            font-size: 0.68rem; font-weight: 600; letter-spacing: 0.12em;
+            text-transform: uppercase; color: var(--teal); margin-bottom: 0.35rem;
+        }
+        .page-title {
+            font-size: 1.5rem; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 1.75rem;
+        }
+
+        /* IDENTITY STRIP */
+        .identity-strip {
+            background: var(--navy-card); border: 1px solid var(--border);
+            border-radius: 10px; padding: 0.9rem 1.25rem;
+            display: flex; align-items: center; gap: 1rem; margin-bottom: 1.25rem;
+        }
+        .id-avatar {
+            width: 40px; height: 40px; background: var(--teal-dim);
+            border: 1.5px solid var(--teal); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.2rem; flex-shrink: 0;
+        }
+        .id-name { font-size: 0.95rem; font-weight: 600; }
+        .id-nim { font-size: 0.75rem; color: var(--teal); font-weight: 500; letter-spacing: 0.04em; }
+
+        /* MAIN GRID */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+        }
+        @media (max-width: 768px) { .main-grid { grid-template-columns: 1fr; } }
+
+        /* CARDS */
+        .card {
+            background: var(--navy-card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem;
+        }
+        .card-label {
+            font-size: 0.68rem; font-weight: 600; letter-spacing: 0.1em;
+            text-transform: uppercase; color: var(--teal);
+            margin-bottom: 1.1rem; display: flex; align-items: center; gap: 0.5rem;
+        }
+        .card-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+        /* INPUT TABS */
+        .input-tabs {
+            display: flex; gap: 0.5rem; margin-bottom: 1rem;
+        }
+        .tab-btn {
+            flex: 1; padding: 0.5rem; border-radius: 7px;
+            border: 1px solid var(--border); background: transparent;
+            color: var(--muted); font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.8rem; font-weight: 600; cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab-btn.active {
+            background: var(--teal-dim); border-color: var(--teal); color: var(--teal);
+        }
+        .tab-btn:hover:not(.active) { border-color: rgba(0,212,200,0.4); color: var(--text); }
+
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* NAME INPUT */
+        .name-input {
+            width: 100%; background: rgba(0,0,0,0.3);
+            border: 1px solid var(--border); border-radius: 8px;
+            color: var(--text); font-family: 'Space Grotesk', sans-serif;
+            font-size: 0.875rem; padding: 0.65rem 1rem; margin-bottom: 0.9rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .name-input::placeholder { color: var(--muted); }
+        .name-input:focus { outline: none; border-color: var(--teal); box-shadow: 0 0 0 3px var(--teal-dim); }
+
+        /* VIDEO */
+        .video-wrap {
+            position: relative; border-radius: 10px; overflow: hidden;
+            border: 1px solid var(--border); background: #000; margin-bottom: 1rem;
+        }
+        #video { width: 100%; height: 240px; display: block; object-fit: cover; }
+        .video-wrap::after {
+            content: ''; position: absolute; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--teal), transparent);
+            animation: scan 2.5s linear infinite; opacity: 0.7;
+        }
+        @keyframes scan { 0% { top: 0; } 100% { top: 100%; } }
+        .corner {
+            position: absolute; width: 16px; height: 16px;
+            border-color: var(--teal); border-style: solid; opacity: 0.7;
+        }
+        .corner.tl { top: 8px; left: 8px; border-width: 2px 0 0 2px; }
+        .corner.tr { top: 8px; right: 8px; border-width: 2px 2px 0 0; }
+        .corner.bl { bottom: 8px; left: 8px; border-width: 0 0 2px 2px; }
+        .corner.br { bottom: 8px; right: 8px; border-width: 0 2px 2px 0; }
+
+        /* UPLOAD ZONE */
+        .upload-zone {
+            border: 2px dashed var(--border); border-radius: 10px;
+            padding: 2.5rem 1rem; text-align: center; cursor: pointer;
+            transition: all 0.2s; margin-bottom: 1rem; background: rgba(0,0,0,0.15);
+        }
+        .upload-zone:hover { border-color: var(--teal); background: var(--teal-dim); }
+        .upload-zone.dragover { border-color: var(--teal); background: var(--teal-dim); }
+        .upload-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .upload-text { font-size: 0.85rem; color: var(--muted); }
+        .upload-text strong { color: var(--teal); }
+        #file-input { display: none; }
+        .preview-img { width: 100%; border-radius: 8px; max-height: 240px; object-fit: cover; display: none; margin-bottom: 1rem; }
+
+        /* CAPTURE BTN */
+        .btn-capture {
+            width: 100%; background: var(--teal); color: var(--navy);
+            border: none; border-radius: 8px; padding: 0.8rem;
+            font-family: 'Space Grotesk', sans-serif; font-size: 0.9rem; font-weight: 700;
+            cursor: pointer; box-shadow: 0 0 20px var(--teal-glow);
+            transition: all 0.2s;
+        }
+        .btn-capture:hover { background: #00bfb4; box-shadow: 0 0 32px rgba(0,212,200,0.45); transform: translateY(-1px); }
+        .btn-capture:active { transform: translateY(0); }
+        canvas { display: none; }
+
+        /* RESULT PANEL */
+        .result-card {
+            background: var(--navy-card); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1.5rem;
+            display: flex; flex-direction: column; min-height: 420px;
+        }
+
+        /* image compare */
+        .compare-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem;
+            margin-bottom: 1.1rem;
+        }
+        .compare-slot {
+            border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+            background: rgba(0,0,0,0.3); aspect-ratio: 1;
+            display: flex; align-items: center; justify-content: center; flex-direction: column;
+        }
+        .compare-slot img { width: 100%; height: 100%; object-fit: cover; }
+        .slot-empty { color: var(--muted); font-size: 0.75rem; text-align: center; padding: 1rem; }
+        .slot-empty span { font-size: 1.75rem; display: block; margin-bottom: 0.4rem; opacity: 0.4; }
+        .slot-label {
+            font-size: 0.65rem; font-weight: 600; letter-spacing: 0.08em;
+            text-transform: uppercase; color: var(--muted);
+            padding: 0.35rem 0.6rem; background: rgba(0,0,0,0.4);
+            text-align: center;
+        }
+
+        /* status */
+        .status-box {
+            border-radius: 8px; padding: 0.75rem 1rem;
+            font-size: 0.875rem; font-weight: 500;
+            border: 1px solid transparent; margin-bottom: 0.9rem;
+            display: none;
+        }
+        .status-box.show { display: block; }
+        .status-box.success { background: rgba(16,185,129,0.12); border-color: rgba(16,185,129,0.35); color: #6EE7B7; }
+        .status-box.warning { background: rgba(245,158,11,0.12); border-color: rgba(245,158,11,0.35); color: #FCD34D; }
+        .status-box.danger  { background: rgba(239,68,68,0.12);  border-color: rgba(239,68,68,0.35);  color: #FCA5A5; }
+
+        /* loading */
+        #loading {
+            display: none; align-items: center; gap: 0.6rem;
+            color: var(--muted); font-size: 0.85rem; margin-bottom: 0.9rem;
+        }
+        .spinner {
+            width: 16px; height: 16px; border: 2px solid var(--border);
+            border-top-color: var(--teal); border-radius: 50%;
+            animation: spin 0.8s linear infinite; flex-shrink: 0;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* METRICS */
+        .metrics { margin-top: auto; border-top: 1px solid var(--border); padding-top: 1rem; display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+        .metric { background: rgba(0,0,0,0.2); border-radius: 8px; padding: 0.75rem 1rem; }
+        .metric-label { font-size: 0.68rem; color: var(--muted); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; margin-bottom: 0.25rem; }
+        .metric-value { font-size: 1.25rem; font-weight: 700; color: var(--teal); }
+        .metric-value.dim { color: var(--muted); font-size: 1rem; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="navbar-inner">
+        <a class="navbar-brand" href="{{ url_for('home_page') }}"><span>AI</span> Attendance</a>
+        <div style="position:relative;">
+            <button class="burger" id="burger" onclick="toggleMenu()">
+                <span class="burger-line"></span>
+                <span class="burger-line"></span>
+                <span class="burger-line"></span>
+            </button>
+            <div class="nav-dropdown" id="navDropdown">
+                <a href="{{ url_for('home_page') }}"><span>🏠</span> Beranda</a>
+                <a href="{{ url_for('predict_page') }}" class="active"><span>📸</span> Prediksi Wajah</a>
+                <a href="{{ url_for('dashboard') }}"><span>📊</span> Dashboard</a>
+                <a href="{{ url_for('logout') }}" class="logout"><span>🚪</span> Logout</a>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<div class="page">
+    <div class="page-eyebrow">Sistem Presensi</div>
+    <h1 class="page-title">Prediksi & Verifikasi Wajah</h1>
+
+    <div class="identity-strip">
+        <div class="id-avatar">🧑‍🎓</div>
+        <div>
+            <div class="id-name">Alfarizhi Fitra</div>
+            <div class="id-nim">NIM · 2311533014</div>
+        </div>
+    </div>
+
+    <div class="main-grid">
+
+        <!-- LEFT: INPUT -->
+        <div class="card">
+            <div class="card-label">📷 Input Gambar</div>
+
+            <div class="input-tabs">
+                <button class="tab-btn active" onclick="switchTab('webcam')">📹 Webcam</button>
+                <button class="tab-btn" onclick="switchTab('upload')">📁 Upload</button>
+            </div>
+
+            <input type="text" id="nama" class="name-input" placeholder="Masukkan Nama Lengkap Anda">
+
+            <!-- WEBCAM TAB -->
+            <div class="tab-panel active" id="tab-webcam">
+                <div class="video-wrap">
+                    <video id="video" autoplay playsinline></video>
+                    <div class="corner tl"></div><div class="corner tr"></div>
+                    <div class="corner bl"></div><div class="corner br"></div>
+                </div>
+                <button class="btn-capture" onclick="ambilAbsen()">📸 Ambil Foto & Verifikasi</button>
+                <canvas id="canvas"></canvas>
+            </div>
+
+            <!-- UPLOAD TAB -->
+            <div class="tab-panel" id="tab-upload">
+                <div class="upload-zone" id="uploadZone" onclick="document.getElementById('file-input').click()"
+                     ondragover="handleDragOver(event)" ondrop="handleDrop(event)" ondragleave="this.classList.remove('dragover')">
+                    <div class="upload-icon">🖼️</div>
+                    <div class="upload-text">Klik atau <strong>drag & drop</strong> gambar di sini<br>
+                    <small style="color:var(--muted);font-size:0.75rem;">JPG, PNG, WEBP — maks. 5MB</small></div>
+                </div>
+                <input type="file" id="file-input" accept="image/*" onchange="handleFileSelect(event)">
+                <img id="preview-img" class="preview-img" alt="Preview">
+                <button class="btn-capture" onclick="submitUpload()">🔍 Verifikasi Gambar</button>
+            </div>
+        </div>
+
+        <!-- RIGHT: RESULT -->
+        <div class="result-card">
+            <div class="card-label">🔬 Hasil Analisis AI</div>
+
+            <div class="compare-grid">
+                <div>
+                    <div class="slot-label">Gambar Asli</div>
+                    <div class="compare-slot" id="slot-original">
+                        <div class="slot-empty"><span>🖼️</span>Belum ada gambar</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="slot-label">Hasil Deteksi</div>
+                    <div class="compare-slot" id="slot-result">
+                        <div class="slot-empty"><span>🤖</span>Menunggu analisis</div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="loading"><div class="spinner"></div>Menganalisis geometri wajah…</div>
+            <div id="result-box" class="status-box"></div>
+
+            <div class="metrics">
+                <div class="metric">
+                    <div class="metric-label">Confidence Score</div>
+                    <div class="metric-value" id="metric-conf">—</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Waktu Inferensi</div>
+                    <div class="metric-value" id="metric-time">—</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    // ── NAVBAR ──
+    function toggleMenu() {
+        document.getElementById('burger').classList.toggle('open');
+        document.getElementById('navDropdown').classList.toggle('open');
+    }
+    document.addEventListener('click', function(e) {
+        const b = document.getElementById('burger'), d = document.getElementById('navDropdown');
+        if (!b.contains(e.target) && !d.contains(e.target)) { b.classList.remove('open'); d.classList.remove('open'); }
+    });
+
+    // ── TABS ──
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+        document.getElementById('tab-' + tab).classList.add('active');
+        event.target.classList.add('active');
+    }
+
+    // ── WEBCAM ──
+    const video = document.getElementById('video');
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => video.srcObject = stream)
+        .catch(err => alert("Gagal membuka webcam lokal: " + err));
+
+    function ambilAbsen() {
+        const nama = document.getElementById('nama').value;
+        if (!nama.trim()) { alert("Kolom nama wajib diisi!"); return; }
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+        const base64Image = canvas.toDataURL('image/jpeg');
+
+        // show original
+        setSlot('slot-original', base64Image);
+        startLoading();
+        const t0 = performance.now();
+
+        fetch('/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nama: nama, image: base64Image })
+        })
+        .then(res => res.json())
+        .then(data => showResult(data, t0, base64Image))
+        .catch(err => { stopLoading(); alert("Terjadi kesalahan sistem: " + err); });
+    }
+
+    // ── UPLOAD ──
+    let uploadedBase64 = null;
+    function handleDragOver(e) { e.preventDefault(); e.currentTarget.classList.add('dragover'); }
+    function handleDrop(e) {
+        e.preventDefault(); e.currentTarget.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (file) loadFile(file);
+    }
+    function handleFileSelect(e) { const file = e.target.files[0]; if (file) loadFile(file); }
+    function loadFile(file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            uploadedBase64 = e.target.result;
+            const img = document.getElementById('preview-img');
+            img.src = uploadedBase64; img.style.display = 'block';
+            document.querySelector('.upload-zone').style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    }
+    function submitUpload() {
+        const nama = document.getElementById('nama').value;
+        if (!nama.trim()) { alert("Kolom nama wajib diisi!"); return; }
+        if (!uploadedBase64) { alert("Pilih gambar terlebih dahulu!"); return; }
+        setSlot('slot-original', uploadedBase64);
+        startLoading();
+        const t0 = performance.now();
+        fetch('/predict', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ nama: nama, image: uploadedBase64 })
+        })
+        .then(res => res.json())
+        .then(data => showResult(data, t0, uploadedBase64))
+        .catch(err => { stopLoading(); alert("Terjadi kesalahan sistem: " + err); });
+    }
+
+    // ── HELPERS ──
+    function setSlot(id, src) {
+        const slot = document.getElementById(id);
+        slot.innerHTML = '<img src="' + src + '" alt="image">';
+    }
+    function startLoading() {
+        document.getElementById('loading').style.display = 'flex';
+        document.getElementById('result-box').className = 'status-box';
+    }
+    function stopLoading() {
+        document.getElementById('loading').style.display = 'none';
+    }
+    function showResult(data, t0, originalSrc) {
+        stopLoading();
+        const ms = Math.round(performance.now() - t0);
+        const resBox = document.getElementById('result-box');
+
+        resBox.innerText = data.message;
+        resBox.className = 'status-box show';
+
+        if (data.status === 'success') {
+            resBox.classList.add('success');
+            document.getElementById('metric-conf').innerText = data.confidence;
+            setSlot('slot-result', data.result_image || originalSrc);
+        } else if (data.status === 'warning') {
+            resBox.classList.add('warning');
+            document.getElementById('metric-conf').innerText = data.confidence;
+            setSlot('slot-result', data.result_image || originalSrc);
+        } else {
+            resBox.classList.add('danger');
+            document.getElementById('metric-conf').innerText = '0%';
+            document.getElementById('slot-result').innerHTML =
+                '<div class="slot-empty"><span>❌</span>Wajah tidak terdeteksi</div>';
+        }
+        document.getElementById('metric-time').innerText = ms + ' ms';
+    }
+</script>
+</body>
+</html>

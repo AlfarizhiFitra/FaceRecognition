@@ -3,3 +3,9 @@ face-recognition
 numpy
 pandas
 pillow
+git+https://github.com/ageitgey/face_recognition_models
+setuptools==67.8.0
+gunicorn
+Flask
+python-dotenv
+supabase
